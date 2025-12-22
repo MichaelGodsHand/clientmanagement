@@ -211,7 +211,7 @@ def create_client_config(
         client_name: Display name for the client
         system_prompt: System prompt for the agent (optional)
         mongodb_database_name: MongoDB database name (defaults to client_id.upper())
-        s3_bucket_name: S3 bucket name (defaults to {client_id}-{uuid})
+        s3_bucket_name: S3 bucket name (ignored - always generated as {client_id}-{uuid})
         s3_region: AWS region for S3 bucket (defaults to configured region)
         openai_api_key: OpenAI API key for this client (optional)
         tools: List of tools configuration (optional)
@@ -254,10 +254,9 @@ def create_client_config(
         
         # Set defaults
         mongodb_database_name = mongodb_database_name or client_id.upper()
-        if not s3_bucket_name:
-            # Generate UUID and append to client_id for bucket name
-            bucket_uuid = str(uuid.uuid4())
-            s3_bucket_name = f"{client_id}-{bucket_uuid}"
+        # Always generate UUID and append to client_id for bucket name
+        bucket_uuid = str(uuid.uuid4())
+        s3_bucket_name = f"{client_id}-{bucket_uuid}"
         s3_region = s3_region or AWS_REGION
         
         # Create S3 bucket
