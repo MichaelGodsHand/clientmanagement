@@ -35,6 +35,7 @@ app.add_middleware(
 class CreateClientRequest(BaseModel):
     client_id: str
     client_name: str
+    owner_id: str
     system_prompt: Optional[str] = None
     mongodb_database_name: Optional[str] = None
     s3_bucket_name: Optional[str] = None
@@ -58,6 +59,7 @@ async def create_client(request: CreateClientRequest):
         result = create_client_config(
             client_id=request.client_id,
             client_name=request.client_name,
+            owner_id=request.owner_id,
             system_prompt=request.system_prompt,
             mongodb_database_name=request.mongodb_database_name,
             s3_bucket_name=request.s3_bucket_name,
