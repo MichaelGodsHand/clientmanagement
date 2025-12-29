@@ -194,6 +194,7 @@ def create_s3_bucket(bucket_name: str, region: str = None) -> Dict[str, any]:
 def create_client_config(
     client_id: str,
     client_name: str,
+    owner_id: str,
     system_prompt: Optional[str] = None,
     mongodb_database_name: Optional[str] = None,
     s3_bucket_name: Optional[str] = None,
@@ -209,6 +210,7 @@ def create_client_config(
     Args:
         client_id: Unique client identifier
         client_name: Display name for the client
+        owner_id: Owner identifier for the client
         system_prompt: System prompt for the agent (optional)
         mongodb_database_name: MongoDB database name (defaults to client_id.upper())
         s3_bucket_name: S3 bucket name (ignored - always generated as {client_id}-{uuid})
@@ -221,10 +223,10 @@ def create_client_config(
         Dict with status and created configuration
     """
     # Validate required fields
-    if not client_id or not client_name:
+    if not client_id or not client_name or not owner_id:
         return {
             "status": "error",
-            "message": "client_id and client_name are required"
+            "message": "client_id, client_name, and owner_id are required"
         }
     
     # Normalize client_id (lowercase, no spaces)
@@ -269,6 +271,7 @@ def create_client_config(
         config = {
             "client_id": client_id,
             "client_name": client_name,
+            "owner_id": owner_id,
             "created_at": datetime.utcnow().isoformat(),
             "updated_at": datetime.utcnow().isoformat(),
             "mongodb": {
