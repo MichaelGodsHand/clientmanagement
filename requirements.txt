@@ -4,3 +4,6 @@ pymongo
 boto3
 python-dotenv
 uuid
+python-jose[cryptography]==3.3.0
+pydantic>=2.0.0
+google-auth==2.25.2
