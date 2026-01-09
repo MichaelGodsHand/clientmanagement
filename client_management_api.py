@@ -206,17 +206,17 @@ async def list_clients():
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@app.get("/clients/{client_id}")
-async def get_client(client_id: str):
-    """Get client configuration"""
+@app.get("/clients/{id}")
+async def get_client(id: str):
+    """Get client configuration by MongoDB ObjectId"""
     try:
-        config = get_client_config_from_mongodb(client_id)
+        config = get_client_config_from_mongodb(id)
         if not config:
-            raise HTTPException(status_code=404, detail=f"Client {client_id} not found")
+            raise HTTPException(status_code=404, detail=f"Client with id {id} not found")
         
         return {
             "status": "success",
-            "client_id": client_id,
+            "id": id,
             "config": config
         }
     except HTTPException:
@@ -226,22 +226,22 @@ async def get_client(client_id: str):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@app.put("/clients/{client_id}/system-prompt")
+@app.put("/clients/{id}/system-prompt")
 async def update_system_prompt(
-    client_id: str,
+    id: str,
     request: UpdateSystemPromptRequest,
     user: User = Depends(require_auth)
 ):
     """
-    Update system prompt for a client.
+    Update system prompt for a client by ObjectId.
     
     **Requires:** JWT authentication + ownership of the client
     """
     # Verify user owns this client
-    check_client_ownership(client_id, user)
+    check_client_ownership(id, user)
     
     try:
-        result = update_client_system_prompt(client_id, request.system_prompt)
+        result = update_client_system_prompt(id, request.system_prompt)
         
         if result["status"] == "error":
             raise HTTPException(status_code=400, detail=result["message"])
@@ -258,20 +258,20 @@ async def update_system_prompt(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@app.post("/clients/{client_id}/system-prompt")
+@app.post("/clients/{id}/system-prompt")
 async def set_system_prompt(
-    client_id: str,
+    id: str,
     request: UpdateSystemPromptRequest,
     user: User = Depends(require_auth)
 ):
     """
-    Set system prompt for a client (alias for PUT).
+    Set system prompt for a client by ObjectId (alias for PUT).
     
     **Requires:** JWT authentication + ownership of the client
     """
-    return await update_system_prompt(client_id, request, user)
+    return await update_system_prompt(id, request, user)
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8004)
