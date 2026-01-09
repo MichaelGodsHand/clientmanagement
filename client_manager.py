@@ -10,6 +10,8 @@ from typing import Dict, Optional
 from pymongo import MongoClient
 from pymongo.errors import ConnectionFailure, ServerSelectionTimeoutError
 from botocore.exceptions import ClientError
+from bson import ObjectId
+from bson.errors import InvalidId
 from datetime import datetime
 import logging
 
@@ -353,12 +355,12 @@ def create_client_config(
         }
 
 
-def update_client_system_prompt(client_id: str, system_prompt: str) -> Dict[str, any]:
+def update_client_system_prompt(id: str, system_prompt: str) -> Dict[str, any]:
     """
-    Update system prompt for a client.
+    Update system prompt for a client by ObjectId.
     
     Args:
-        client_id: Unique client identifier
+        id: MongoDB ObjectId as string
         system_prompt: New system prompt text
         
     Returns:
@@ -372,12 +374,21 @@ def update_client_system_prompt(client_id: str, system_prompt: str) -> Dict[str,
         }
     
     try:
+        # Convert string to ObjectId
+        try:
+            object_id = ObjectId(id)
+        except (InvalidId, TypeError):
+            return {
+                "status": "error",
+                "message": f"Invalid ObjectId format: {id}"
+            }
+        
         admin_db = mongo_client[ADMIN_DB_NAME]
         clients_collection = admin_db["client_configs"]
         
         # Update system prompt
         result = clients_collection.update_one(
-            {"client_id": client_id},
+            {"_id": object_id},
             {
                 "$set": {
                     "agent.system_prompt": system_prompt,
@@ -389,21 +400,21 @@ def update_client_system_prompt(client_id: str, system_prompt: str) -> Dict[str,
         if result.matched_count == 0:
             return {
                 "status": "not_found",
-                "message": f"Client {client_id} not found"
+                "message": f"Client with id {id} not found"
             }
         
         # Get updated config
-        updated_config = clients_collection.find_one({"client_id": client_id})
+        updated_config = clients_collection.find_one({"_id": object_id})
         if updated_config and '_id' in updated_config:
             # Convert ObjectId to string for JSON serialization
             updated_config['_id'] = str(updated_config['_id'])
         
-        logger.info(f"Updated system prompt for client {client_id}")
+        logger.info(f"Updated system prompt for client {id}")
         
         return {
             "status": "updated",
-            "message": f"System prompt updated for client {client_id}",
-            "client_id": client_id,
+            "message": f"System prompt updated for client {id}",
+            "id": id,
             "config": updated_config
         }
         
@@ -415,12 +426,12 @@ def update_client_system_prompt(client_id: str, system_prompt: str) -> Dict[str,
         }
 
 
-def get_client_config_from_mongodb(client_id: str) -> Optional[Dict]:
+def get_client_config_from_mongodb(id: str) -> Optional[Dict]:
     """
-    Get client configuration from MongoDB.
+    Get client configuration from MongoDB by ObjectId.
     
     Args:
-        client_id: Unique client identifier
+        id: MongoDB ObjectId as string
         
     Returns:
         Client configuration dict or None if not found (includes _id as string)
@@ -430,10 +441,17 @@ def get_client_config_from_mongodb(client_id: str) -> Optional[Dict]:
         return None
     
     try:
+        # Convert string to ObjectId
+        try:
+            object_id = ObjectId(id)
+        except (InvalidId, TypeError):
+            logger.error(f"Invalid ObjectId format: {id}")
+            return None
+        
         admin_db = mongo_client[ADMIN_DB_NAME]
         clients_collection = admin_db["client_configs"]
         
-        config = clients_collection.find_one({"client_id": client_id})
+        config = clients_collection.find_one({"_id": object_id})
         if config and '_id' in config:
             # Convert ObjectId to string for JSON serialization
             config['_id'] = str(config['_id'])
