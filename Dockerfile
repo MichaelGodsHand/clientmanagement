@@ -28,6 +28,7 @@ ENV PORT=8080
 EXPOSE 8080
 
 # Run the application
-# Use PORT from environment (Cloud Run sets this to 8080)
-CMD exec uvicorn client_management_api:app --host 0.0.0.0 --port ${PORT:-8080}
+# Cloud Run sets PORT environment variable (defaults to 8080)
+# Use sh -c to properly expand environment variable
+CMD ["sh", "-c", "uvicorn client_management_api:app --host 0.0.0.0 --port ${PORT:-8080}"]
 
