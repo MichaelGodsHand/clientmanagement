@@ -333,8 +333,9 @@ def create_client_config(
         
         logger.info(f"Created client configuration for {client_id} (MongoDB ID: {result.inserted_id})")
         
-        # Remove MongoDB _id from response
-        config.pop('_id', None)
+        # Convert MongoDB _id to string for JSON serialization
+        if '_id' in config:
+            config['_id'] = str(config['_id'])
         
         return {
             "status": "created",
@@ -393,8 +394,9 @@ def update_client_system_prompt(client_id: str, system_prompt: str) -> Dict[str,
         
         # Get updated config
         updated_config = clients_collection.find_one({"client_id": client_id})
-        if updated_config:
-            updated_config.pop('_id', None)
+        if updated_config and '_id' in updated_config:
+            # Convert ObjectId to string for JSON serialization
+            updated_config['_id'] = str(updated_config['_id'])
         
         logger.info(f"Updated system prompt for client {client_id}")
         
@@ -421,7 +423,7 @@ def get_client_config_from_mongodb(client_id: str) -> Optional[Dict]:
         client_id: Unique client identifier
         
     Returns:
-        Client configuration dict or None if not found
+        Client configuration dict or None if not found (includes _id as string)
     """
     mongo_client = get_mongodb_client()
     if not mongo_client:
@@ -432,8 +434,9 @@ def get_client_config_from_mongodb(client_id: str) -> Optional[Dict]:
         clients_collection = admin_db["client_configs"]
         
         config = clients_collection.find_one({"client_id": client_id})
-        if config:
-            config.pop('_id', None)
+        if config and '_id' in config:
+            # Convert ObjectId to string for JSON serialization
+            config['_id'] = str(config['_id'])
         
         return config
         
@@ -447,7 +450,7 @@ def list_all_clients_from_mongodb() -> list:
     List all clients from MongoDB.
     
     Returns:
-        List of client configurations
+        List of client configurations (includes _id as string)
     """
     mongo_client = get_mongodb_client()
     if not mongo_client:
@@ -457,7 +460,13 @@ def list_all_clients_from_mongodb() -> list:
         admin_db = mongo_client[ADMIN_DB_NAME]
         clients_collection = admin_db["client_configs"]
         
-        clients = list(clients_collection.find({}, {"_id": 0}))
+        clients = list(clients_collection.find({}))
+        
+        # Convert ObjectId to string for JSON serialization
+        for client in clients:
+            if '_id' in client:
+                client['_id'] = str(client['_id'])
+        
         return clients
         
     except Exception as e:
