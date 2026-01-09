@@ -24,23 +24,41 @@ AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_REGION = os.getenv("AWS_REGION", "ap-south-1")
 
+# Initialize MongoDB client with connection pooling
+# Single client instance shared across all requests
+mongodb_client = None
+if MONGODB_URI:
+    try:
+        mongodb_client = MongoClient(
+            MONGODB_URI,
+            maxPoolSize=50,  # Maximum 50 connections in pool
+            minPoolSize=10,  # Minimum 10 connections always ready
+            maxIdleTimeMS=45000,  # Close idle connections after 45s
+            serverSelectionTimeoutMS=5000,  # Timeout for server selection
+            connectTimeoutMS=10000,  # Timeout for initial connection
+            socketTimeoutMS=45000,  # Timeout for socket operations
+            retryWrites=True,  # Retry writes on network errors
+            retryReads=True,  # Retry reads on network errors
+        )
+        # Test connection
+        mongodb_client.admin.command('ping')
+        logger.info("✅ MongoDB connection pool initialized successfully")
+    except (ConnectionFailure, ServerSelectionTimeoutError) as e:
+        logger.error(f"❌ Failed to connect to MongoDB: {e}")
+        mongodb_client = None
+    except Exception as e:
+        logger.error(f"❌ Error connecting to MongoDB: {e}")
+        mongodb_client = None
+else:
+    logger.error("❌ MONGODB_URI not configured")
+
 
 def get_mongodb_client():
-    """Get MongoDB client connection"""
-    if not MONGODB_URI:
-        logger.error("MONGODB_URI not configured")
-        return None
-    
-    try:
-        client = MongoClient(MONGODB_URI, serverSelectionTimeoutMS=5000)
-        client.admin.command('ping')
-        return client
-    except (ConnectionFailure, ServerSelectionTimeoutError) as e:
-        logger.error(f"Failed to connect to MongoDB: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Error connecting to MongoDB: {e}")
-        return None
+    """
+    Get MongoDB client (shared connection pool)
+    Returns the global mongodb_client instance
+    """
+    return mongodb_client
 
 
 def get_s3_client():
@@ -196,6 +214,7 @@ def create_client_config(
     client_name: str,
     owner_id: str,
     system_prompt: Optional[str] = None,
+    languages: Optional[list] = None,
     mongodb_database_name: Optional[str] = None,
     s3_bucket_name: Optional[str] = None,
     s3_region: Optional[str] = None,
@@ -212,6 +231,7 @@ def create_client_config(
         client_name: Display name for the client
         owner_id: Owner identifier for the client
         system_prompt: System prompt for the agent (optional)
+        languages: List of languages the agent should speak (optional, e.g., ["English", "Tamil", "Hindi"])
         mongodb_database_name: MongoDB database name (defaults to client_id.upper())
         s3_bucket_name: S3 bucket name (ignored - always generated as {client_id}-{uuid})
         s3_region: AWS region for S3 bucket (defaults to configured region)
@@ -283,6 +303,7 @@ def create_client_config(
             },
             "agent": {
                 "system_prompt": system_prompt or "",
+                "languages": languages or [],
                 "llm_config": {
                     "model": os.getenv("LLM_MODEL", "gemini-live-2.5-flash-preview-native-audio-09-2025"),
                     "temperature": float(os.getenv("LLM_TEMPERATURE", "0.1"))
@@ -442,4 +463,3 @@ def list_all_clients_from_mongodb() -> list:
     except Exception as e:
         logger.error(f"Error listing clients from MongoDB: {e}", exc_info=True)
         return []
-
